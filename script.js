@@ -10,6 +10,39 @@ const regionCodeToName = {
   "24": "Västerbottens län", "25": "Norrbottens län"
 };
 
+const nameToConsumptionKey = {
+  "Stockholms län": "Stockholm",
+  "Uppsala län": "Uppsala",
+  "Södermanlands län": "Södermanland",
+  "Östergötlands län": "Östergötland",
+  "Jönköpings län": "Jönköping",
+  "Kronobergs län": "Kronoberg",
+  "Kalmar län": "Kalmar",
+  "Gotlands län": "Gotland",
+  "Blekinge län": "Blekinge",
+  "Skåne län": "Skåne",
+  "Hallands län": "Halland",
+  "Västra Götalands län": "Västra Götaland",
+  "Värmlands län": "Värmland",
+  "Örebro län": "Örebro",
+  "Västmanlands län": "Västmanland",
+  "Dalarnas län": "Dalarna",
+  "Gävleborgs län": "Gävleborg",
+  "Västernorrlands län": "Västernorrland",
+  "Jämtlands län": "Jämtland",
+  "Västerbottens län": "Västerbotten",
+  "Norrbottens län": "Norrbotten"
+};
+
+const consumptionData = {
+  "Stockholm": 4.4, "Uppsala": 3.9, "Södermanland": 3.6, "Östergötland": 3.9,
+  "Jönköping": 3.3, "Kronoberg": 3.6, "Kalmar": 3.5, "Gotland": 4.0,
+  "Blekinge": 3.6, "Skåne": 3.9, "Halland": 3.7, "Västra Götaland": 3.9,
+  "Värmland": 3.6, "Örebro": 3.5, "Västmanland": 3.4, "Dalarna": 3.4,
+  "Gävleborg": 3.5, "Västernorrland": 3.5, "Jämtland": 3.5,
+  "Västerbotten": 3.6, "Norrbotten": 3.5
+};
+
 const regionCodes = Object.keys(regionCodeToName);
 
 const querySCB4 = {
@@ -22,7 +55,6 @@ const querySCB4 = {
   response: { format: "JSON" }
 };
 
-// ⬇️ Ändringen sker här: ArealTyp: "01" för LANDAREAL
 const queryArea = {
   query: [
     { code: "Region", selection: { filter: "vs:BRegionLän07N", values: regionCodes }},
@@ -65,32 +97,56 @@ function fetchAndDrawChart() {
       areaMap[code] = area;
     });
 
-    const labels = [];
-    const data = [];
+    const bubbleData = [];
 
     regionCodes.forEach(code => {
       const name = regionCodeToName[code];
       const pop = populationMap[code];
       const area = areaMap[code];
+      const key = nameToConsumptionKey[name];
+      const consumption = consumptionData[key];
 
-      if (pop && area) {
-        labels.push(name);
-        data.push((pop / area).toFixed(1));
+      if (pop && area && consumption) {
+        const density = pop / area;
+        bubbleData.push({
+          x: parseFloat(density.toFixed(1)),
+          y: consumption,
+          r: Math.sqrt(pop / 100000) * 5, // Radien baseras på populationen
+          label: name
+        });
       }
     });
 
-    const datasets = [{
-      label: "Invånare per km² per län (2019)",
-      data,
-      fill: false,
-      borderWidth: 2,
-      borderColor: "hsla(250, 100%, 30%, 1)",
-      hoverBorderWidth: 4
-    }];
-
     new Chart(document.getElementById("scb4"), {
-      type: "line",
-      data: { labels, datasets }
+      type: "bubble",
+      data: {
+        datasets: [{
+          label: "Alkoholkonsumtion vs Befolkningstäthet",
+          data: bubbleData,
+          backgroundColor: "rgba(54, 162, 235, 0.6)",
+          borderColor: "rgba(54, 162, 235, 1)"
+        }]
+      },
+      options: {
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const d = ctx.raw;
+                return `${d.label}: ${d.x} inv/km², ${d.y} L/pers`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: "Invånare per km²" }
+          },
+          y: {
+            title: { display: true, text: "Liter ren alkohol per person/år" }
+          }
+        }
+      }
     });
   })
   .catch(err => {
